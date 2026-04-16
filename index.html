@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>定点会 · 议题进度</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --accent: #4f8ef7;
+      --accent-glow: rgba(79, 142, 247, 0.25);
+      --done: #22c55e;
+      --done-bg: rgba(34, 197, 94, 0.08);
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --current-bg: rgba(79, 142, 247, 0.12);
+    }
+
+    /* 部门颜色 */
+    .tag-车身        { background: rgba(59,130,246,0.15); color: #60a5fa; border-color: rgba(59,130,246,0.3); }
+    .tag-电子电器    { background: rgba(6,182,212,0.15);  color: #22d3ee; border-color: rgba(6,182,212,0.3); }
+    .tag-底盘        { background: rgba(139,92,246,0.15); color: #a78bfa; border-color: rgba(139,92,246,0.3); }
+    .tag-增程与热管理{ background: rgba(249,115,22,0.15); color: #fb923c; border-color: rgba(249,115,22,0.3); }
+    .tag-座舱        { background: rgba(236,72,153,0.15); color: #f472b6; border-color: rgba(236,72,153,0.3); }
+    .tag-电驱动      { background: rgba(34,197,94,0.15);  color: #4ade80; border-color: rgba(34,197,94,0.3); }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .meeting-label {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .meeting-name {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .counter-badge {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 22px;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .counter-nums {
+      font-size: 28px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--accent);
+      line-height: 1;
+    }
+    .counter-nums span { color: var(--muted); font-weight: 400; font-size: 20px; }
+    .counter-label { font-size: 11px; color: var(--muted); margin-top: 4px; letter-spacing: 0.06em; }
+
+    /* ── Progress bar ── */
+    .progress-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .progress-bar-bg {
+      height: 8px;
+      background: var(--surface);
+      border-radius: 99px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #7c3aed);
+      border-radius: 99px;
+      transition: width 0.5s cubic-bezier(.4,0,.2,1);
+    }
+    .progress-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .progress-pct { color: var(--accent); font-weight: 600; }
+
+    /* ── Agenda list ── */
+    .agenda-list { display: flex; flex-direction: column; gap: 6px; }
+
+    .agenda-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      transition: all 0.22s ease;
+      user-select: none;
+    }
+    .agenda-item:hover         { border-color: var(--accent); background: var(--current-bg); }
+    .agenda-item.done          { background: var(--done-bg); border-color: rgba(34,197,94,0.2); opacity: 0.65; }
+    .agenda-item.done:hover    { opacity: 1; }
+    .agenda-item.current       { background: var(--current-bg); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); opacity: 1; }
+
+    .item-index {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0;
+      background: var(--border); color: var(--muted);
+      transition: all 0.22s;
+    }
+    .agenda-item.done    .item-index { background: rgba(34,197,94,0.1); color: var(--done); border: 1px solid rgba(34,197,94,0.4); }
+    .agenda-item.current .item-index { background: var(--accent); color: #fff; box-shadow: 0 0 10px var(--accent-glow); }
+
+    .item-body { flex: 1; min-width: 0; }
+
+    .item-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .item-title {
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.4;
+    }
+    .agenda-item.done    .item-title { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(107,114,128,0.4); }
+    .agenda-item.current .item-title { color: #fff; font-weight: 600; }
+
+    .item-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 5px;
+      flex-wrap: wrap;
+    }
+    .tag {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 99px;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    /* category tag */
+    .tag-category {
+      background: rgba(255,255,255,0.06);
+      color: var(--muted);
+      border-color: var(--border);
+    }
+    .agenda-item.current .tag-category {
+      background: rgba(79,142,247,0.15);
+      color: rgba(79,142,247,0.9);
+      border-color: rgba(79,142,247,0.3);
+    }
+    .item-reporter {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .agenda-item.current .item-reporter { color: rgba(79,142,247,0.8); }
+
+    /* right-side status */
+    .item-status {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      white-space: nowrap; padding: 3px 10px; border-radius: 99px; flex-shrink: 0;
+    }
+    .agenda-item.done    .item-status { background: rgba(34,197,94,0.1); color: var(--done); border: 1px solid rgba(34,197,94,0.3); }
+    .agenda-item.current .item-status { background: var(--accent); color: #fff; }
+    .agenda-item:not(.done):not(.current) .item-status { background: var(--border); color: var(--muted); }
+
+    /* ── Controls ── */
+    .controls { display: flex; align-items: center; justify-content: center; gap: 12px; }
+    .btn {
+      padding: 10px 28px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: all 0.2s; font-family: inherit;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--accent); background: var(--current-bg); }
+    .btn:disabled { opacity: 0.3; cursor: default; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; padding: 10px 36px; }
+    .btn-primary:hover:not(:disabled) { background: #3b7de8; border-color: #3b7de8; }
+
+    .hint { text-align: center; font-size: 12px; color: var(--muted); }
+    .hint kbd { background: var(--border); border-radius: 4px; padding: 1px 6px; font-family: inherit; font-size: 11px; }
+
+    .banner {
+      display: none; text-align: center; padding: 20px;
+      background: var(--done-bg); border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 12px; color: var(--done); font-size: 18px; font-weight: 700; letter-spacing: 0.04em;
+    }
+    .banner.show { display: block; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="title-block">
+      <div class="meeting-label">定点会 · 议题进度</div>
+      <div class="meeting-name" id="meetingName"></div>
+    </div>
+    <div class="counter-badge">
+      <div class="counter-nums">
+        <span id="doneCount">0</span><span> / </span><span id="totalCount">0</span>
+      </div>
+      <div class="counter-label">议题已完成</div>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div class="progress-info">
+      <span></span>
+      <span class="progress-pct" id="progressPct">0%</span>
+    </div>
+  </div>
+
+  <div class="agenda-list" id="agendaList"></div>
+
+  <div class="banner" id="doneBanner">所有议题已汇报完毕</div>
+
+  <div class="controls">
+    <button class="btn" id="btnReset" onclick="reset()">重置</button>
+    <button class="btn" id="btnPrev" onclick="prev()" disabled>← 上一项</button>
+    <button class="btn btn-primary" id="btnNext" onclick="next()">下一项 →</button>
+  </div>
+
+  <div class="hint">按 <kbd>←</kbd> <kbd>→</kbd> 或 <kbd>Space</kbd> 切换议题 &nbsp;·&nbsp; 点击任意议题可跳转</div>
+
+</div>
+
+<script>
+  // ============================================================
+  // ✏️  修改会议名称
+  // ============================================================
+  const MEETING_NAME = "2026年4月16日（425次）二级定点会";
+
+  // ============================================================
+  // ✏️  议题清单
+  // dept: 部门  category: 议题小类  reporter: 汇报人
+  // ============================================================
+  const AGENDA = [
+    { title: "W10海外版右舵EC镜片设变定点",                     dept: "车身",     category: "变更",           reporter: "崔欣欣" },
+    { title: "X11侧裙SOP",                                      dept: "车身",     category: "变更",           reporter: "高艺铭" },
+    { title: "X11/X13 背门静音锁扣 位置及高度变更",             dept: "车身",     category: "变更",           reporter: "卓亮" },
+    { title: "X11/X13 前盖锁接插头位置变更",                    dept: "车身",     category: "变更",           reporter: "卓亮" },
+    { title: "W04B 机舱前密封条设变",                           dept: "车身",     category: "变更",           reporter: "卓亮" },
+    { title: "X04C/X11焊装胶包装变更",                          dept: "车身",     category: "变更",           reporter: "李凌锋" },
+    { title: "【W10海外版】【充电小门】【设变定点】",           dept: "车身",     category: "变更",           reporter: "张子婧" },
+    { title: "【W02B】【前端框架】【设变】",                    dept: "车身",     category: "变更",           reporter: "张子婧" },
+    { title: "【品类扩充】【充电口盖】KCP01",                   dept: "车身",     category: "供应商认证-KCP1", reporter: "张子婧" },
+    { title: "W0热包2设变-燕龙世润",                            dept: "车身",     category: "变更",           reporter: "钟世斌" },
+    { title: "W02B-前敲击传感器-定点策略汇报（第一次上会）",   dept: "电子电器", category: "定点-方案",       reporter: "于大海" },
+    { title: "洗涤系统-供应商准入（KCP01）",                    dept: "电子电器", category: "供应商认证-KCP1", reporter: "于大海" },
+    { title: "OC后副车架衬套定点结果汇报",                      dept: "底盘",     category: "定点-结果",       reporter: "张茜" },
+    { title: "OC11 车轮螺母定点",                                dept: "底盘",     category: "定点-方案",       reporter: "陈钰欣" },
+    { title: "负离子发生器 KCP01",                               dept: "增程与热管理", category: "供应商认证-KCP1", reporter: "徐云" },
+    { title: "蓄冷总成准入KCP02",                                dept: "增程与热管理", category: "供应商认证-KCP2", reporter: "靡启达 / 洪阳兵" },
+    { title: "CY002项目EGR阀供应商准入kcp02",                   dept: "增程与热管理", category: "供应商认证-KCP2", reporter: "李振飞 / 李大鹏" },
+    { title: "热熔胶样件-短描价格审批",                         dept: "座舱",     category: "试制/试验/样件",  reporter: "童佳欢" },
+    { title: "品类紧急新增-移动中岛",                           dept: "座舱",     category: "品类主数据",      reporter: "陈海松" },
+    { title: "XPD 800V T-转接铜排设计变更",                     dept: "电驱动",   category: "变更",           reporter: "何流" },
+    { title: "W04B海外版车门防撞梁定点",                        dept: "车身",     category: "集中定点",        reporter: "钟世斌 / 张欣祺" },
+    { title: "W02B-黑漆支架包1-结果汇报",                       dept: "车身",     category: "集中定点",        reporter: "王景妍 / 张欣祺" },
+    { title: "X11/X13低压线束 防夹传感器转接线 定点结果",       dept: "电子电器", category: "集中定点",        reporter: "张欣祺 / 于天润" },
+    { title: "X11设变-黑漆支架车身包",                          dept: "车身",     category: "集中设变",        reporter: "张欣祺 / 王景妍" },
+    { title: "X11/X13海外版遮阳板设变定点",                     dept: "座舱",     category: "集中设变",        reporter: "张雷 / 张欣祺" },
+  ];
+  // ============================================================
+
+  let current = 0;
+
+  function render() {
+    const n = AGENDA.length;
+    document.getElementById("meetingName").textContent = MEETING_NAME;
+    document.getElementById("totalCount").textContent = n;
+
+    const done = Math.min(current, n);
+    document.getElementById("doneCount").textContent = done;
+
+    const pct = Math.round(done / n * 100);
+    document.getElementById("progressFill").style.width = pct + "%";
+    document.getElementById("progressPct").textContent = pct + "%";
+
+    const list = document.getElementById("agendaList");
+    list.innerHTML = "";
+    AGENDA.forEach((item, i) => {
+      const isDone    = current > i || current >= n;
+      const isCurrent = current === i;
+
+      const div = document.createElement("div");
+      div.className = "agenda-item" + (isDone ? " done" : "") + (isCurrent ? " current" : "");
+      div.onclick = () => jumpTo(i);
+
+      const deptClass = "tag tag-" + (item.dept || "");
+      const statusText = isDone ? "已完成" : isCurrent ? "汇报中" : "待汇报";
+
+      div.innerHTML = `
+        <div class="item-index">${isDone ? "✓" : i + 1}</div>
+        <div class="item-body">
+          <div class="item-meta">
+            ${item.dept     ? `<span class="${deptClass}">${item.dept}</span>` : ""}
+            ${item.category ? `<span class="tag tag-category">${item.category}</span>` : ""}
+            ${item.reporter ? `<span class="item-reporter">· ${item.reporter}</span>` : ""}
+          </div>
+        </div>
+        <div class="item-status">${statusText}</div>
+      `;
+      list.appendChild(div);
+    });
+
+    document.getElementById("doneBanner").classList.toggle("show", current >= n);
+
+    document.getElementById("btnPrev").disabled = current <= 0;
+    document.getElementById("btnNext").disabled = current >= n;
+    document.getElementById("btnNext").textContent =
+      current >= n - 1 ? "结束会议 ✓" : "下一项 →";
+
+    const items = list.querySelectorAll(".agenda-item");
+    if (items[current]) items[current].scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function next()      { if (current < AGENDA.length) { current++; render(); } }
+  function prev()      { if (current > 0) { current--; render(); } }
+  function reset()     { current = 0; render(); }
+  function jumpTo(i)   { current = i; render(); }
+
+  document.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight" || e.key === " ") { e.preventDefault(); next(); }
+    if (e.key === "ArrowLeft")                    { e.preventDefault(); prev(); }
+  });
+
+  render();
+</script>
+</body>
+</html>
